@@ -1,0 +1,37 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "TP 01: Rodar Todas as Instancias (Modo Rapido 30s)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/TP_01/forma_2_python_mip/pchm_mtz.py",
+            "args": ["--limite=30"],
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "TP 01: Rodar Todas as Instancias (Limite Oficial 3 min / 180s)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/TP_01/forma_2_python_mip/pchm_mtz.py",
+            "args": [],
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "TP 01: Testar apenas br17.atsp (Instantaneo)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/TP_01/forma_2_python_mip/pchm_mtz.py",
+            "args": ["${workspaceFolder}/Implementacao/instancias/Completos e Assimetricos nos Arcos/br17.atsp"],
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "TP 01: Testar apenas ftv33.atsp (Instantaneo)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/TP_01/forma_2_python_mip/pchm_mtz.py",
+            "args": ["${workspaceFolder}/Implementacao/instancias/Completos e Assimetricos nos Arcos/ftv33.atsp"],
+            "console": "integratedTerminal"
+        }
+    ]
+}

@@ -1,0 +1,17 @@
+# Compilados C/C++
+*.o
+*.obj
+*.exe
+*.out
+PL
+PL.lp
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Arquivos temporarios do sistema
+.DS_Store
+Thumbs.db
