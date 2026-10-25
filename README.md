@@ -1,6 +1,6 @@
-# QXD0181 - Pesquisa Operacional — Trabalho Prático 01
+# QXD0181 - Pesquisa Operacional  Trabalho Prático 01
 
-**Universidade Federal do Ceará (UFC) — Campus Quixadá**  
+**Universidade Federal do Ceará (UFC)  Campus Quixadá**  
 **Disciplina:** QXD0181 - Pesquisa Operacional  
 **Professor:** Paulo Henrique Macêdo  
 **Tema:** Programação Linear Inteira para o Problema do Caminho Hamiltoniano Mínimo (PCHM) com Vértices de Origem ($s = 1$) e Destino ($t = n$) utilizando as restrições de Miller-Tucker-Zemlin (MTZ).
