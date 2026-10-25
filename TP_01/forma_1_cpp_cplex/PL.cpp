@@ -375,35 +375,10 @@ void resolverModeloMTZ(
     env.end();
 }
 
-int main(int argc, char* argv[]) {
-    // Se executado diretamente pelo botao Play do VS Code sem argumentos,
-    // tenta localizar a instancia br17.atsp automaticamente
-    const char* candidatosPadrao[] = {
-        "../../Implementacao/instancias/Completos e Assimetricos nos Arcos/br17.atsp",
-        "../Implementacao/instancias/Completos e Assimetricos nos Arcos/br17.atsp",
-        "Implementacao/instancias/Completos e Assimetricos nos Arcos/br17.atsp"
-    };
-
-    const char* caminhoArquivo = NULL;
-    FILE* pFile = NULL;
-
-    if (argc >= 2) {
-        caminhoArquivo = argv[1];
-        pFile = fopen(caminhoArquivo, "r");
-    } else {
-        for (int i = 0; i < 3; i++) {
-            pFile = fopen(candidatosPadrao[i], "r");
-            if (pFile != NULL) {
-                caminhoArquivo = candidatosPadrao[i];
-                break;
-            }
-        }
-    }
-
+int resolverArquivoInstancia(const char* caminhoArquivo) {
+    FILE* pFile = fopen(caminhoArquivo, "r");
     if (pFile == NULL) {
-        printf("Nao foi possivel abrir o arquivo de instancia.\n");
-        printf("Uso: %s <arquivo_instancia.atsp>\n", argv[0]);
-        return 1;
+        return -1;
     }
 
     int n = 0;
@@ -411,7 +386,7 @@ int main(int argc, char* argv[]) {
     if (readATSPFile(pFile, &n, c) != 0) {
         fclose(pFile);
         printf("Erro ao ler a instancia ATSP: %s\n", caminhoArquivo);
-        return 1;
+        return -1;
     }
     fclose(pFile);
 
@@ -421,12 +396,76 @@ int main(int argc, char* argv[]) {
     printf("============================================================\n");
     printf("Instancia: %s | n = %d | Origem s = 1 | Destino t = %d\n", caminhoArquivo, n, n);
     printf("============================================================\n");
+    fflush(stdout);
 
     // Executa Atividade 2 (Relaxacao Linear)
     resolverModeloMTZ(n, s, t, c, true);
+    fflush(stdout);
 
     // Executa Atividade 3 (Modelo Inteiro com limite de 3 minutos + Validacao da Atividade 1)
     resolverModeloMTZ(n, s, t, c, false);
+    fflush(stdout);
+
+    return 0;
+}
+
+int main(int argc, char* argv[]) {
+    // Se um arquivo especifico foi passado via linha de comando, executa nele
+    if (argc >= 2) {
+        if (resolverArquivoInstancia(argv[1]) != 0) {
+            printf("Nao foi possivel abrir o arquivo: %s\n", argv[1]);
+            return 1;
+        }
+        return 0;
+    }
+
+    // Se executado diretamente pelo botao Play do VS Code (inclusive de dentro da pasta output/),
+    // localiza automaticamente a pasta "Implementacao/instancias/Completos e Assimetricos nos Arcos"
+    const char* prefixos[] = {
+        "../../../Implementacao/instancias/Completos e Assimetricos nos Arcos/",
+        "../../Implementacao/instancias/Completos e Assimetricos nos Arcos/",
+        "../Implementacao/instancias/Completos e Assimetricos nos Arcos/",
+        "Implementacao/instancias/Completos e Assimetricos nos Arcos/"
+    };
+
+    const char* nomesInstancias[] = {
+        "br17.atsp",
+        "ftv33.atsp",
+        "ftv35.atsp",
+        "ftv38.atsp",
+        "p43.atsp",
+        "ftv44.atsp",
+        "ftv47.atsp",
+        "ry48p.atsp",
+        "ft53.atsp",
+        "ftv55.atsp",
+        "ftv64.atsp",
+        "ft70.atsp",
+        "ftv70.atsp"
+    };
+    const int totalInstancias = 13;
+
+    string pastaEncontrada = "";
+    for (int p = 0; p < 4; p++) {
+        string teste = string(prefixos[p]) + "br17.atsp";
+        FILE* f = fopen(teste.c_str(), "r");
+        if (f != NULL) {
+            fclose(f);
+            pastaEncontrada = prefixos[p];
+            break;
+        }
+    }
+
+    if (pastaEncontrada.empty()) {
+        printf("Nao foi possivel localizar a pasta de instancias automaticamente.\n");
+        printf("Uso: %s <arquivo_instancia.atsp>\n", argv[0]);
+        return 1;
+    }
+
+    for (int i = 0; i < totalInstancias; i++) {
+        string caminhoCompleto = pastaEncontrada + nomesInstancias[i];
+        resolverArquivoInstancia(caminhoCompleto.c_str());
+    }
 
     return 0;
 }
