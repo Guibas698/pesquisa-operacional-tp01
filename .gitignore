@@ -3,6 +3,8 @@
 *.obj
 *.exe
 *.out
+output/
+_cplex_bridge_*
 PL
 PL.lp
 

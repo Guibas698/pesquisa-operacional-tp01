@@ -7,11 +7,11 @@
 #include <ctype.h>
 #include "readFile.h"
 
+// Leitura das instancias no formato TSPLIB (.atsp)
 inline int readATSPFile(FILE* graphFile, int *n, std::vector<std::vector<double>>& c) {
     char word[256];
     *n = 0;
 
-    // Procura por DIMENSION e EDGE_WEIGHT_SECTION no cabecalho TSPLIB
     while (fscanf(graphFile, "%255s", word) == 1) {
         if (strncmp(word, "DIMENSION", 9) == 0) {
             if (strchr(word, ':') == NULL) {
@@ -44,4 +44,4 @@ inline int readATSPFile(FILE* graphFile, int *n, std::vector<std::vector<double>
     return 0;
 }
 
-#endif /* READFILE_C_INCLUDED_ */
+#endif

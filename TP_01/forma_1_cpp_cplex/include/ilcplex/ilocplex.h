@@ -1,12 +1,6 @@
 #ifndef ILOCPLEX_WINDOWS_COMPAT_H_
 #define ILOCPLEX_WINDOWS_COMPAT_H_
 
-// ============================================================================
-// Camada de Compatibilidade IBM ILOG CPLEX Concert Technology para Windows/GCC
-// Permite compilar e executar PL.cpp diretamente no Windows/VS Code usando g++
-// mantendo 100% da sintaxe oficial do CPLEX (IloEnv, IloModel, IloCplex, etc.).
-// ============================================================================
-
 #include <iostream>
 #include <fstream>
 #include <sstream>

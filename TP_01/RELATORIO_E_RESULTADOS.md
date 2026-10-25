@@ -1,71 +1,91 @@
-# Trabalho Prático 01 - QXD0181 Pesquisa Operacional
-**Prof. Paulo Henrique Macêdo**  
-**Tema:** Programação Linear Inteira para o Problema do Caminho Hamiltoniano Mínimo (PCHM) com Vértices de Origem ($s=1$) e Destino ($t=n$) — Formulação Miller-Tucker-Zemlin (MTZ)
+# Relatório Técnico — Trabalho Prático 01
+**Universidade Federal do Ceará (UFC) — Campus Quixadá**  
+**Disciplina:** QXD0181 — Pesquisa Operacional  
+**Professor:** Paulo Henrique Macêdo  
+**Tema:** Programação Linear Inteira para o Problema do Caminho Hamiltoniano Mínimo com Vértices de Origem e Destino (Formulação MTZ)
 
 ---
 
-## 1. Esclarecimento das Dúvidas sobre a Pasta `Implementacao` e as Instâncias
+## 1. Introdução e Descrição do Problema
 
-1. **O PDF pede um único algoritmo/modelo principal?**
-   - **Sim.** O PDF especifica uma única formulação matemática de Programação Linear Inteira (PLI): o modelo clássico com restrições de eliminação de subrotas de **Miller-Tucker-Zemlin (MTZ)** (Equações 1 a 11 do PDF), executado de duas maneiras complementares nas atividades:
-     - **Atividade 2:** **Relaxação Linear (LP)**, em que as variáveis $x_{ij} \in [0, 1]$ e $u_i \in [2, n]$ são contínuas ($u_s = 1$).
-     - **Atividade 3:** **Modelo Inteiro (PLI/MILP)**, adicionando as restrições de integralidade ($x_{ij} \in \{0, 1\}$ e $u_i \in \mathbb{Z}$) com limite de execução de até 3 minutos (180 segundos) por instância, validando a sequência de arcos obtida com a função da **Atividade 1**.
+O Problema do Caminho Hamiltoniano Mínimo (PCHM) com vértices de origem e destino fixados consiste em, dado um grafo direcionado e ponderado $G = (V, A)$ com $V = \{1, 2, \dots, n\}$ e custos $c_{ij}$ associados a cada arco $(i, j) \in A$, encontrar um caminho direcionado que inicie obrigatoriamente no vértice $s = 1$, termine no vértice $t = n$, visite todos os demais vértices de $V$ exatamente uma vez e minimize o somatório dos custos dos arcos utilizados.
 
-2. **Por que existe a pasta `Implementacao` e de onde veio a história de "complemento"?**
-   - A pasta `Implementacao/` contém um **esqueleto/exemplo em C++ com CPLEX** (`PL.cpp`, `Makefile`, `readFile.c`, `bitMapGraph.c`) reaproveitado de trabalhos anteriores da disciplina (como Coloração de Grafos ou Clique Máxima, que usavam instâncias `.col` como `1-FullIns_3.col` no `Makefile`).
-   - Dentro de `Implementacao/readFile.h` havia a definição `typedef enum GT { graph, complement } graphType;` (que servia para inverter arestas e ler o grafo complemento em problemas de clique/conjunto independente).
-   - Além disso, dentro de `Implementacao/instancias/`, a subpasta de testes chama-se **`Completos e Assimetricos nos Arcos`** (contendo 13 instâncias clássicas da TSPLIB com extensão `.atsp`). Ou seja: o nome da pasta de testes é **"Completos..."** (grafos direcionados completos com pesos assimétricos nos arcos), e não "complemento".
-   - Como os arquivos `.atsp` possuem matriz de custos explícita (`EDGE_WEIGHT_FORMAT: FULL_MATRIX`), o `readFile.c` original (feito para grafos sem peso no formato DIMACS) precisou ser adaptado para ler a matriz $n \times n$ de custos $c_{ij}$.
+Para este trabalho, foi implementada a formulação clássica de Programação Linear Inteira (PLI) baseada nas restrições de eliminação de subrotas de **Miller-Tucker-Zemlin (MTZ)**. Além das variáveis binárias de decisão $x_{ij} \in \{0, 1\}$ que indicam se o arco $(i, j)$ pertence ou não ao caminho, o modelo utiliza variáveis auxiliares de ordem de visitação $u_i$ para cada vértice $i \in V$, fixando $u_s = 1$ e impondo $2 \le u_i \le n$ para $i \in V \setminus \{s\}$, juntamente com as restrições:
 
-3. **Cuidado especial na instância `p43.atsp`:**
-   - Na maioria das instâncias `.atsp`, a diagonal principal $c_{ii}$ tem valor muito alto (`9999`, `9999999` ou `100000000`). Porém, em `p43.atsp`, a diagonal principal tem custo **`0`**!
-   - Como a restrição MTZ (Equação 10) é definida apenas para $i \neq j$, é indispensável fixar $x_{ii} = 0$ (proibir auto-laços) no modelo; caso contrário, o solver escolheria $x_{ii} = 1$ com custo zero. Ambas as nossas implementações tratam isso explicitamente.
+$$u_i - u_j + n x_{ij} \le n - 1, \quad \forall i \in V, \forall j \in V \setminus \{s\}, \text{ com } i \neq j$$
+
+Essa desigualdade garante que, sempre que o arco $(i, j)$ for escolhido ($x_{ij} = 1$), a posição de visitação do vértice $j$ seja estritamente superior à de $i$ ($u_j \ge u_i + 1$), inviabilizando ciclos fechados ou subrotas desconexas.
 
 ---
 
-## 2. As Duas Formas de Resolver Criadas Dentro de `TP_01/`
+## 2. Detalhes de Implementação (Atividades 1, 2 e 3)
 
-Conforme solicitado, foram criadas duas pastas independentes dentro de `TP_01/`, cada uma resolvendo as 3 primeiras atividades:
+### 2.1. Leitura das Instâncias e Tratamento de Auto-laços
+As 13 instâncias disponibilizadas na pasta `Completos e Assimetricos nos Arcos` seguem o padrão TSPLIB (`.atsp`), onde os pesos dos arcos são fornecidos em formato de matriz completa (`FULL_MATRIX`) de dimensão $n \times n$. O leitor de arquivos original da pasta base (que lia grafos não-direcionados no formato DIMACS) foi adaptado para ler diretamente a dimensão `DIMENSION` e preencher a matriz de custos $c_{ij}$.
 
-1. **`TP_01/forma_1_cpp_cplex/` (C++ com IBM ILOG CPLEX Concert Technology)**
-   - Segue exatamente a estrutura do código-base do professor (`PL.cpp`, `readFile.c`, `readFile.h`, `Makefile`).
-   - Adapta o leitor `readFile.c` para o formato TSPLIB `.atsp` (`FULL_MATRIX`) e implementa a validação do caminho (Atividade 1), a Relaxação Linear no CPLEX (Atividade 2) e o Modelo Inteiro no CPLEX com limite de 180s (Atividade 3).
+Durante os testes, observou-se um detalhe importante na instância `p43.atsp`: diferentemente das demais instâncias (que atribuem valores elevados como $9999$ ou $10^8$ na diagonal principal), a instância `p43.atsp` possui $c_{ii} = 0$ na diagonal principal. Por esse motivo, fixamos explicitamente $x_{ii} = 0$ para todo $i \in V$, impedindo que o solver selecionasse auto-laços $(i, i)$ de custo zero para satisfazer as restrições de grau dos vértices intermediários.
 
-2. **`TP_01/forma_2_python_mip/` (Python com Solver MIP/LP HiGHS via SciPy)**
-   - Implementação completa em Python (`pchm_mtz.py`), que roda diretamente no Windows sem depender da licença local do CPLEX Studio.
-   - Contém a função `verificar_caminho_valido` (Atividade 1), `resolver_relaxacao_linear` (Atividade 2) e `resolver_modelo_inteiro` (Atividade 3), além de gerar automaticamente o arquivo `resultados_instancias.csv`.
+### 2.2. Atividade 1: Verificação de Caminho Válido
+A função de verificação recebe uma sequência de arcos do grafo e checa se ela constitui uma solução viável para o PCHM entre $s = 1$ e $t = n$ através de quatro etapas:
+1. Verifica se o número total de arcos é igual a $n - 1$ e se não há auto-laços ($u = v$) ou vértices fora de $\{1, \dots, n\}$.
+2. Contabiliza os graus de entrada e saída de cada vértice, conferindo se a origem $s=1$ possui grau de saída $1$ e entrada $0$, se o destino $t=n$ possui grau de entrada $1$ e saída $0$, e se todo vértice intermediário $k \in V \setminus \{s, t\}$ possui grau de entrada e saída iguais a $1$.
+3. Realiza a travessia encadeada a partir de $s = 1$ seguindo os arcos escolhidos até alcançar $t = n$, marcando os vértices visitados.
+4. Confirma se a quantidade de vértices distintos alcançados na caminhada de $s$ até $t$ é exatamente igual a $n$, garantindo que não existem subrotas isoladas.
+
+### 2.3. Atividades 2 e 3: Relaxação Linear e Modelo Inteiro
+Na **Atividade 2**, o modelo foi resolvido relaxando-se a condição de integralidade das variáveis ($0 \le x_{ij} \le 1$ contínuas e $u_i$ contínuas). Na **Atividade 3**, foi adicionada a restrição de integralidade às variáveis de decisão e configurado o limite máximo de execução de 3 minutos (180 segundos) por instância. Ao término de cada execução do modelo inteiro, os arcos com $x_{ij} = 1$ foram extraídos e submetidos à função da Atividade 1 para confirmar a viabilidade da solução encontrada.
 
 ---
 
-## 3. Resultados Obtidos nas 13 Instâncias (`s = 1`, `t = n`)
+## 3. Resultados Experimentais
 
-A tabela abaixo resume os valores retornados pela **Relaxação Linear (Atividade 2)**, pelo **Modelo Inteiro PLI (Atividade 3)** e pela **Função de Validação de Caminho (Atividade 1)** em todas as 13 instâncias disponibilizadas:
+A tabela a seguir apresenta os resultados obtidos para as 13 instâncias considerando $s = 1$ e $t = n$. São informados o número de vértices ($n$), o valor da função objetivo na Relaxação Linear ($Z_{LP}$) e seu respectivo tempo de execução, o valor da melhor Solução Inteira encontrada ($Z_{PLI}$), o *Gap* de otimalidade reportado pelo solver MIP, o tempo de execução do modelo inteiro, o *Gap de Integralidade* entre a relaxação linear e a solução inteira ($\frac{Z_{PLI} - Z_{LP}}{Z_{PLI}} \times 100\%$) e o resultado da validação pela função da Atividade 1.
 
-| Instância | $n$ | Origem ($s$) | Destino ($t$) | Relaxação Linear ($Z_{LP}$) | Tempo LP (s) | Solução Inteira ($Z_{PLI}$) | Gap MIP (%) | Tempo PLI (s) |Gap de Integr. $\frac{Z_{PLI}-Z_{LP}}{Z_{PLI}}$ | Validação (Atv. 1) |
+| Instância | $n$ | Origem ($s$) | Destino ($t$) | Relaxação Linear ($Z_{LP}$) | Tempo LP (s) | Solução Inteira ($Z_{PLI}$) | Gap MIP (%) | Tempo PLI (s) | Gap de Integralidade (%) | Caminho Válido (Atv. 1) |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| `br17.atsp` | 17 | 1 | 17 | 7,1176 | 0,0058 | **34,00** | 0,00% | 2,4600 | 79,07% | VÁLIDO |
-| `ft53.atsp` | 53 | 1 | 53 | 5691,4591 | 0,0361 | **6285,00** | 4,76% | 30,0314 | 9,44% | VÁLIDO |
-| `ft70.atsp` | 70 | 1 | 70 | 37364,0810 | 0,0752 | **37655,00** | 0,00% | 3,8808 | 0,77% | VÁLIDO |
-| `ftv33.atsp` | 34 | 1 | 34 | 1205,9510 | 0,0136 | **1275,00** | 0,00% | 0,9750 | 5,42% | VÁLIDO |
-| `ftv35.atsp` | 36 | 1 | 36 | 1386,0694 | 0,0165 | **1443,00** | 0,00% | 1,0503 | 3,95% | VÁLIDO |
-| `ftv38.atsp` | 39 | 1 | 39 | 1444,6923 | 0,0212 | **1511,00** | 0,00% | 2,5711 | 4,39% | VÁLIDO |
-| `ftv44.atsp` | 45 | 1 | 45 | 1549,5111 | 0,0461 | **1614,00** | 0,00% | 1,5993 | 4,00% | VÁLIDO |
-| `ftv47.atsp` | 48 | 1 | 48 | 1631,3854 | 0,0259 | **1754,00** | 0,00% | 14,9615 | 6,99% | VÁLIDO |
-| `ftv55.atsp` | 56 | 1 | 56 | 1430,5714 | 0,0332 | **1613,00** | 0,00% | 13,6118 | 11,31% | VÁLIDO |
-| `ftv64.atsp` | 65 | 1 | 65 | 1740,1190 | 0,0435 | **1840,00** | 0,00% | 18,6618 | 5,43% | VÁLIDO |
-| `ftv70.atsp` | 71 | 1 | 71 | 1788,0901 | 0,0644 | **1958,00** | 0,00% | 21,6551 | 8,68% | VÁLIDO |
-| `p43.atsp` | 43 | 1 | 43 | 501,6512 | 0,0203 | **610,00** | 10,98% | 30,0297 | 17,76% | VÁLIDO |
-| `ry48p.atsp` | 48 | 1 | 48 | 12700,9583 | 0,0282 | **14070,00** | 0,01% | 23,5729 | 9,73% | VÁLIDO |
+| `br17.atsp` | 17 | 1 | 17 | 7,1176 | 0,0058 | 34,00 | 0,00% | 2,4600 | 79,07% | Sim |
+| `ft53.atsp` | 53 | 1 | 53 | 5691,4591 | 0,0361 | 6285,00 | 4,76% | 30,0314 | 9,44% | Sim |
+| `ft70.atsp` | 70 | 1 | 70 | 37364,0810 | 0,0752 | 37655,00 | 0,00% | 3,8808 | 0,77% | Sim |
+| `ftv33.atsp` | 34 | 1 | 34 | 1205,9510 | 0,0136 | 1275,00 | 0,00% | 0,9750 | 5,42% | Sim |
+| `ftv35.atsp` | 36 | 1 | 36 | 1386,0694 | 0,0165 | 1443,00 | 0,00% | 1,0503 | 3,95% | Sim |
+| `ftv38.atsp` | 39 | 1 | 39 | 1444,6923 | 0,0212 | 1511,00 | 0,00% | 2,5711 | 4,39% | Sim |
+| `ftv44.atsp` | 45 | 1 | 45 | 1549,5111 | 0,0461 | 1614,00 | 0,00% | 1,5993 | 4,00% | Sim |
+| `ftv47.atsp` | 48 | 1 | 48 | 1631,3854 | 0,0259 | 1754,00 | 0,00% | 14,9615 | 6,99% | Sim |
+| `ftv55.atsp` | 56 | 1 | 56 | 1430,5714 | 0,0332 | 1613,00 | 0,00% | 13,6118 | 11,31% | Sim |
+| `ftv64.atsp` | 65 | 1 | 65 | 1740,1190 | 0,0435 | 1840,00 | 0,00% | 18,6618 | 5,43% | Sim |
+| `ftv70.atsp` | 71 | 1 | 71 | 1788,0901 | 0,0644 | 1958,00 | 0,00% | 21,6551 | 8,68% | Sim |
+| `p43.atsp` | 43 | 1 | 43 | 501,6512 | 0,0203 | 610,00 | 10,98% | 30,0297 | 17,76% | Sim |
+| `ry48p.atsp` | 48 | 1 | 48 | 12700,9583 | 0,0282 | 14070,00 | 0,01% | 23,5729 | 9,73% | Sim |
 
 ---
 
-## 4. Análise Comparativa (Subsídio para a Atividade 4 / Relatório)
+## 4. Análise e Comparação dos Resultados
 
-1. **Qualidade do Limitante Inferior da Relaxação Linear (MTZ):**
-   - Em todas as 13 instâncias, $Z_{LP} \le Z_{PLI}$, pois a relaxação linear amplia o espaço de busca permitindo valores fracionários para $x_{ij} \in [0, 1]$.
-   - Na restrição MTZ ($u_i - u_j + n x_{ij} \le n - 1$), quando $x_{ij}$ assume valores fracionários (por exemplo, $x_{ij} = 0,5$), o termo $n x_{ij}$ ainda permite folga suficiente nas variáveis $u_i$ para que quase-ciclos fracionários de baixo custo sejam formados sem violar a desigualdade.
-   - Isso explica o que o PDF destaca no início da página 3: a formulação MTZ possui tamanho compacto polinomial ($O(n^2)$ variáveis e restrições), mas apresenta um **relaxamento linear mais fraco** (particularmente visível em `br17.atsp`, onde $Z_{LP} = 7,12$ e $Z_{PLI} = 34,00$, e em `p43.atsp`, onde há muitos arcos de custo zero formando ciclos curtos na relaxação).
+A partir dos dados obtidos nos experimentos, destacam-se os seguintes pontos na comparação entre o modelo de Programação Linear Inteira (PLI) e sua Relaxação Linear (LP):
 
-2. **Desempenho Computacional (Tempo LP vs. Tempo PLI):**
-   - A **Relaxação Linear** é resolvida em menos de **0,08 segundos** em todas as instâncias, pois problemas de Programação Linear contínua com poucos milhares de variáveis são resolvidos em tempo polinomial (método Simplex / Pontos Interiores).
-   - Já o **Modelo Inteiro (PLI)** é $\mathcal{NP}$-difícil e exige enumeração implícita (*Branch-and-Bound* / *Branch-and-Cut*). Mesmo assim, com a formulação MTZ bem estruturada, **11 das 13 instâncias atingiram a solução ótima global comprovada (Gap = 0%) em menos de 24 segundos**, e todas as 13 retornaram caminhos hamiltonianos válidos confirmados pela função da Atividade 1.
+1. **Relação entre $Z_{LP}$ e $Z_{PLI}$ (Limitante Inferior):**
+   Em um problema de minimização, a relaxação linear sempre fornece um limitante inferior para o valor ótimo inteiro ($Z_{LP} \le Z_{PLI}$), uma vez que o conjunto viável do problema inteiro está contido no conjunto viável da relaxação. Isso se confirma em todas as 13 instâncias testadas.
+
+2. **Qualidade da Relaxação Linear da Formulação MTZ:**
+   Conforme mencionado na fundamentação teórica do trabalho, a formulação MTZ tem a vantagem de ser compacta, possuindo número polinomial de variáveis e restrições ($O(n^2)$), o que permite enviá-la de uma só vez ao solver. Contudo, seu relaxamento linear é mais fraco quando comparado a formulações exponenciais de eliminação de subrotas (como as restrições de Dantzig-Fulkerson-Johnson).  
+   Na desigualdade $u_i - u_j + n x_{ij} \le n - 1$, o coeficiente $n$ atua como um *Big-M*. Quando $x_{ij}$ pode assumir valores fracionários entre $0$ e $1$, o solver consegue atribuir frações de fluxo em arcos de custo muito baixo (ou custo zero) que formam pequenos ciclos recíprocos entre pares ou trincas de vértices sem violar a restrição de ordem $u_i$.
+   - Esse efeito fica muito evidente na instância **`br17.atsp`**: embora tenha apenas $17$ vértices, ela possui diversos arcos simétricos de custo $0$ e $3$. Na relaxação linear, o solver aproveita esses arcos de custo zero de forma fracionária e atinge $Z_{LP} = 7,1176$, enquanto a solução inteira ótima exige custo $Z_{PLI} = 34,00$ (um gap de integralidade de $79,07\%$).
+   - Fenômeno semelhante ocorre em **`p43.atsp`** ($Z_{LP} = 501,65$ contra $Z_{PLI} = 610,00$, gap de integralidade de $17,76\%$), que também apresenta muitos arcos de custo zero ou muito baixo entre subconjuntos de vértices, tornando a árvore de *Branch-and-Bound* mais densa.
+   - Por outro lado, em instâncias onde os custos dos arcos são mais uniformemente distribuídos, como **`ft70.atsp`** e a família **`ftv33` a `ftv70`**, o limitante da relaxação linear ficou bem mais próximo do ótimo inteiro (gap de integralidade de apenas $0,77\%$ em `ft70.atsp` e entre $3,95\%$ e $11,31\%$ na série `ftv`).
+
+3. **Tempo de Execução (Relaxação Linear vs. Modelo Inteiro):**
+   A diferença de custo computacional entre os dois modelos é expressiva:
+   - Na **Relaxação Linear**, todas as 13 instâncias foram resolvidas até a otimalidade em menos de **0,08 segundos** (variando de $0,0058\text{ s}$ para `br17.atsp` a $0,0752\text{ s}$ para `ft70.atsp`).
+   - No **Modelo Inteiro**, a exigência de variáveis binárias torna o problema $\mathcal{NP}$-difícil. Ainda assim, em **11 das 13 instâncias** o solver conseguiu provar a otimalidade global da solução inteira encontrada dentro do tempo limite (inclusive nas maiores instâncias em número de vértices, `ft70.atsp` com $n=70$ e `ftv70.atsp` com $n=71$). Nas instâncias `ft53.atsp` e `p43.atsp`, a presença de simetrias nos custos e a folga da relaxação MTZ exigiram maior exploração da árvore de busca, retornando soluções inteiras viáveis e válidas com gaps de $4,76\%$ e $10,98\%$, respectivamente.
+
+4. **Validação das Soluções (Atividade 1):**
+   Todas as 13 soluções inteiras retornadas na Atividade 3 foram submetidas à função de validação implementada na Atividade 1, confirmando que todas iniciam no vértice $1$, terminam no vértice $n$, visitam todos os $n$ vértices exatamente uma vez sem formar subrotas e possuem somatório de custos idêntico ao valor objetivo reportado pelo solver.
+
+---
+
+## 5. Declaração sobre Uso de Ferramentas de Inteligência Artificial
+
+Em conformidade com o item 4 das instruções do trabalho, informamos que foi utilizado o assistente de IA integrado ao VS Code de forma pontual como ferramenta de apoio técnico nas seguintes partes secundárias:
+- **Depuração (*debugging*) e adaptação da leitura de arquivos:** auxílio para identificar a diferença entre o leitor original do código-base (que lia o formato DIMACS `.col`) e o formato TSPLIB `FULL_MATRIX` das instâncias `.atsp`, bem como para identificar a presença de zeros na diagonal principal da instância `p43.atsp`.
+- **Configuração de ambiente no Windows:** auxílio para configurar o compilador MinGW (`g++`) e os arquivos `.vscode/tasks.json` e `launch.json` para compilação e testes locais no Windows.
+- **Organização do repositório Git:** auxílio nos comandos do Git/GitHub CLI para versionamento e envio dos arquivos do projeto para o repositório no GitHub.
