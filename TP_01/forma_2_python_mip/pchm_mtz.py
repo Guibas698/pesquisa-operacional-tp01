@@ -1,4 +1,4 @@
-﻿import os
+import os
 import sys
 import time
 import glob
@@ -8,6 +8,7 @@ from scipy.optimize import linprog, milp, LinearConstraint, Bounds
 from scipy.sparse import lil_matrix
 
 
+# Funcao para ler os arquivos .atsp (pega o DIMENSION n e a matriz de custos n x n)
 def ler_instancia_atsp(caminho_arquivo):
     nome = os.path.basename(caminho_arquivo)
     n = 0
@@ -43,14 +44,16 @@ def ler_instancia_atsp(caminho_arquivo):
     return nome, n, matriz_custos
 
 
-# Questao 1: verifica se a sequencia de arcos corresponde a um caminho hamiltoniano valido de s a t
+# Q1 - Funcao que recebe uma sequencia de arcos e verifica se eh um caminho hamiltoniano valido de s=1 ate t=n
 def verificar_caminho_valido(arcos, n, s=1, t=None, matriz_custos=None):
     if t is None:
         t = n
 
+    # origem e destino precisam estar entre 1 e n e ser diferentes
     if n < 2 or not (1 <= s <= n) or not (1 <= t <= n) or s == t:
         return False, "Parametros de origem/destino invalidos.", 0.0
 
+    # caminho hamiltoniano tem que ter n - 1 arcos
     if len(arcos) != n - 1:
         return False, f"Quantidade de arcos ({len(arcos)}) diferente de n - 1 ({n - 1}).", 0.0
 
@@ -59,6 +62,7 @@ def verificar_caminho_valido(arcos, n, s=1, t=None, matriz_custos=None):
     proximo_vertice = {}
     custo_total = 0.0
 
+    # conta graus de entrada e saida e checa se nao tem auto-laco (u == v)
     for u, v in arcos:
         if not (1 <= u <= n) or not (1 <= v <= n) or u == v:
             return False, f"Arco invalido: ({u}, {v}).", 0.0
@@ -70,14 +74,16 @@ def verificar_caminho_valido(arcos, n, s=1, t=None, matriz_custos=None):
         if matriz_custos is not None:
             custo_total += float(matriz_custos[u - 1, v - 1])
 
+    # confere se o primeiro arco sai de s e o ultimo chega em t
     if arcos[0][0] != s or arcos[-1][1] != t:
         return False, "O caminho nao inicia em s ou nao termina em t.", 0.0
 
+    # confere se a sequencia de arcos esta ligada (o fim de um arco eh o inicio do proximo)
     for idx in range(len(arcos) - 1):
         if arcos[idx][1] != arcos[idx + 1][0]:
             return False, "Sequencia de arcos desconexa.", 0.0
 
-    # Verifica graus (Eq. 3 a 8)
+    # checa as restricoes de grau (Eq 3 a 8 do PDF)
     if grau_saida[s] != 1 or grau_entrada[s] != 0:
         return False, "Grau invalido na origem s.", 0.0
     if grau_entrada[t] != 1 or grau_saida[t] != 0:
@@ -89,7 +95,7 @@ def verificar_caminho_valido(arcos, n, s=1, t=None, matriz_custos=None):
         if grau_entrada[k] != 1 or grau_saida[k] != 1:
             return False, f"Grau invalido no vertice {k}.", 0.0
 
-    # Percorre de s ate t para checar ciclos/subrotas
+    # percorre de s ate t marcando os visitados para garantir que nao tem subrota/ciclo
     visitados = set()
     atual = s
     while atual is not None:
@@ -106,17 +112,19 @@ def verificar_caminho_valido(arcos, n, s=1, t=None, matriz_custos=None):
     return True, "Caminho valido", custo_total
 
 
+# Base para Q2 e Q3 - Monta as matrizes do modelo com as restricoes de grau e de Miller-Tucker-Zemlin (MTZ)
 def construir_modelo_mtz(n, c, s=1, t=None):
     if t is None:
         t = n
     s_idx = s - 1
     t_idx = t - 1
 
+    # primeiras n*n variaveis sao x_ij e as ultimas n variaveis sao u_i
     num_x = n * n
     num_u = n
     num_vars = num_x + num_u
 
-    # Funcao objetivo (Eq. 2)
+    # Eq (2): coeficientes da funcao objetivo (custos c_ij)
     obj = np.zeros(num_vars, dtype=float)
     for i in range(n):
         for j in range(n):
@@ -127,9 +135,11 @@ def construir_modelo_mtz(n, c, s=1, t=None):
     ub = np.ones(num_vars, dtype=float)
 
     for i in range(n):
+        # fixa diagonal x_ii = 0 (evita auto-laco, importante na p43.atsp que tem custo 0 na diagonal)
         lb[i * n + i] = 0.0
         ub[i * n + i] = 0.0
 
+        # limites de u_i: Eq (9) u_s = 1 e Eq (11) 2 <= u_i <= n para os demais
         u_idx = num_x + i
         if i == s_idx:
             lb[u_idx] = 1.0
@@ -149,20 +159,23 @@ def construir_modelo_mtz(n, c, s=1, t=None):
         lhs_list.append(lb_val)
         rhs_list.append(ub_val)
 
-    # Eq. (3) a (6): graus em s e t
+    # Eq (3): soma das saidas de s = 1
     idxs = [s_idx * n + j for j in range(n) if j != s_idx]
     adicionar_restricao(idxs, [1.0] * len(idxs), 1.0, 1.0)
 
+    # Eq (4): soma das chegadas em t = 1
     idxs = [i * n + t_idx for i in range(n) if i != t_idx]
     adicionar_restricao(idxs, [1.0] * len(idxs), 1.0, 1.0)
 
+    # Eq (5): nao pode entrar na origem s (soma = 0)
     idxs = [i * n + s_idx for i in range(n) if i != s_idx]
     adicionar_restricao(idxs, [1.0] * len(idxs), 0.0, 0.0)
 
+    # Eq (6): nao pode sair do destino t (soma = 0)
     idxs = [t_idx * n + j for j in range(n) if j != t_idx]
     adicionar_restricao(idxs, [1.0] * len(idxs), 0.0, 0.0)
 
-    # Eq. (7) e (8): graus nos vertices intermediarios
+    # Eq (7) e Eq (8): conservacao de fluxo nos vertices intermediarios (entra 1 e sai 1)
     for k in range(n):
         if k == s_idx or k == t_idx:
             continue
@@ -172,7 +185,7 @@ def construir_modelo_mtz(n, c, s=1, t=None):
         idxs_out = [k * n + j for j in range(n) if j != k]
         adicionar_restricao(idxs_out, [1.0] * len(idxs_out), 1.0, 1.0)
 
-    # Eq. (10): restricoes MTZ
+    # Eq (10): restricao MTZ (u_i - u_j + n * x_ij <= n - 1) para impedir subrotas
     for i in range(n):
         for j in range(n):
             if j == s_idx or i == j:
@@ -190,7 +203,7 @@ def construir_modelo_mtz(n, c, s=1, t=None):
     return obj, A.tocsc(), np.array(lhs_list, dtype=float), np.array(rhs_list, dtype=float), lb, ub
 
 
-# Questao 2: resolve a relaxacao linear
+# Q2 - Resolve a Relaxacao Linear (variaveis continuas entre 0 e 1, sem restricao de integralidade)
 def resolver_relaxacao_linear(n, c, s=1, t=None):
     if t is None:
         t = n
@@ -218,12 +231,13 @@ def resolver_relaxacao_linear(n, c, s=1, t=None):
     }
 
 
-# Questao 3: resolve o modelo inteiro com limite de 3 minutos (180s)
+# Q3 - Resolve o Modelo Inteiro PLI (adiciona integralidade e limite de 3 minutos = 180s)
 def resolver_modelo_inteiro(n, c, s=1, t=None, limite_tempo_segundos=180.0):
     if t is None:
         t = n
     obj, A_csc, lhs, rhs, lb, ub = construir_modelo_mtz(n, c, s, t)
 
+    # define integralidade para as variaveis binarias x_ij
     integrality = np.ones_like(obj)
     integrality[n * n :] = 0
     constraints = LinearConstraint(A_csc, lhs, rhs)
@@ -253,6 +267,7 @@ def resolver_modelo_inteiro(n, c, s=1, t=None, limite_tempo_segundos=180.0):
 
     x_sol = res.x[: n * n].reshape((n, n))
 
+    # monta a sequencia de arcos a partir das variaveis x_ij = 1
     proximo = {}
     for i in range(n):
         for j in range(n):
@@ -268,6 +283,7 @@ def resolver_modelo_inteiro(n, c, s=1, t=None, limite_tempo_segundos=180.0):
         arcos_caminho.append((atual, seguinte))
         atual = seguinte
 
+    # Q1 - valida o caminho inteiro encontrado usando a funcao da Questao 1
     eh_valido, _, custo_verificado = verificar_caminho_valido(
         arcos_caminho, n, s=s, t=t, matriz_custos=c
     )
@@ -293,15 +309,19 @@ def resolver_modelo_inteiro(n, c, s=1, t=None, limite_tempo_segundos=180.0):
 def main():
     pasta_base = os.path.dirname(os.path.abspath(__file__))
     pasta_instancias = os.path.normpath(
-        os.path.join(
-            pasta_base,
-            "..",
-            "..",
-            "Implementacao",
-            "instancias",
-            "Completos e Assimetricos nos Arcos",
-        )
+        os.path.join(pasta_base, "..", "instancias", "Completos e Assimetricos nos Arcos")
     )
+    if not os.path.isdir(pasta_instancias):
+        pasta_instancias = os.path.normpath(
+            os.path.join(
+                pasta_base,
+                "..",
+                "..",
+                "Implementacao",
+                "instancias",
+                "Completos e Assimetricos nos Arcos",
+            )
+        )
 
     limite_tempo = 180.0
     args_arquivos = []
@@ -334,9 +354,12 @@ def main():
     for caminho in arquivos:
         nome_arq = os.path.basename(caminho)
         _, n, c = ler_instancia_atsp(caminho)
-        s, t = 1, n
+        s, t = 1, n # conforme o enunciado: origem = 1 e destino = n
 
+        # roda Q2 (Relaxacao Linear)
         res_lp = resolver_relaxacao_linear(n, c, s=s, t=t)
+
+        # roda Q3 (Modelo Inteiro com limite de tempo e valida na Q1)
         res_pli = resolver_modelo_inteiro(n, c, s=s, t=t, limite_tempo_segundos=limite_tempo)
 
         lp_val = res_lp["valor_objetivo"]
@@ -387,4 +410,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

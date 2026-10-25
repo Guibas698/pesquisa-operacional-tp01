@@ -1,4 +1,4 @@
-﻿#include <stdio.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 #include <iostream>
@@ -25,7 +25,8 @@
 ILOSTLBEGIN
 using namespace std;
 
-// Questao 1: verifica se a sequencia de arcos forma um caminho hamiltoniano valido de s ate t
+
+// Q1 - Funcao que recebe a sequencia de arcos e verifica se o caminho eh valido (de s=1 ate t=n)
 bool verificarCaminhoValido(
     const vector<pair<int, int>>& arcos,
     int n,
@@ -36,10 +37,12 @@ bool verificarCaminhoValido(
 ) {
     if (custoTotal != NULL) *custoTotal = 0.0;
 
+    // checa se origem e destino sao validos e diferentes
     if (s < 1 || s > n || t < 1 || t > n || s == t) {
         return false;
     }
 
+    // caminho hamiltoniano tem que ter exatamente n - 1 arcos
     if ((int)arcos.size() != n - 1) {
         return false;
     }
@@ -49,10 +52,12 @@ bool verificarCaminhoValido(
     vector<int> proximo(n + 1, -1);
     double somaCustos = 0.0;
 
+    // percorre os arcos contando grau de entrada/saida e somando o custo
     for (size_t k = 0; k < arcos.size(); k++) {
         int u = arcos[k].first;
         int v = arcos[k].second;
 
+        // nao pode ter vertice fora de 1..n nem auto-laco (u == v)
         if (u < 1 || u > n || v < 1 || v > n || u == v) {
             return false;
         }
@@ -63,11 +68,11 @@ bool verificarCaminhoValido(
         somaCustos += c[u - 1][v - 1];
     }
 
-    // Restricoes de grau na origem e no destino
+    // origem s: sai 1 e nao entra nenhum | destino t: entra 1 e nao sai nenhum
     if (grauSaida[s] != 1 || grauEntrada[s] != 0) return false;
     if (grauEntrada[t] != 1 || grauSaida[t] != 0) return false;
 
-    // Restricoes de grau nos vertices intermediarios
+    // vertices do meio: tem que entrar 1 e sair 1
     for (int k = 1; k <= n; k++) {
         if (k == s || k == t) continue;
         if (grauEntrada[k] != 1 || grauSaida[k] != 1) {
@@ -75,13 +80,13 @@ bool verificarCaminhoValido(
         }
     }
 
-    // Percorre o caminho a partir de s para checar se todos os vertices sao visitados sem ciclos
+    // caminha de s ate t para garantir que nao tem ciclo/subrota isolada
     vector<bool> visitado(n + 1, false);
     int atual = s;
     int contVisitados = 0;
 
     while (atual != -1) {
-        if (visitado[atual]) return false;
+        if (visitado[atual]) return false; // achou ciclo
         visitado[atual] = true;
         contVisitados++;
 
@@ -89,6 +94,7 @@ bool verificarCaminhoValido(
         atual = proximo[atual];
     }
 
+    // confirma se parou em t e se passou por todos os n vertices
     if (atual != t || contVisitados != n) {
         return false;
     }
@@ -97,7 +103,8 @@ bool verificarCaminhoValido(
     return true;
 }
 
-// Questoes 2 e 3: monta e resolve o modelo MTZ (relaxacao linear ou modelo inteiro)
+
+// Q2 e Q3 - Monta o modelo MTZ e resolve a Relaxacao Linear (Q2) ou o Modelo Inteiro (Q3)
 void resolverModeloMTZ(
     int n,
     int s,
@@ -110,6 +117,7 @@ void resolverModeloMTZ(
         IloModel model(env);
         IloCplex cplex(env);
 
+        // criacao das variaveis x_ij
         IloArray<IloNumVarArray> x(env, n);
         for (int i = 0; i < n; i++) {
             x[i] = IloNumVarArray(env, n);
@@ -117,28 +125,33 @@ void resolverModeloMTZ(
                 char nome[32];
                 sprintf(nome, "x_%d_%d", i + 1, j + 1);
                 if (i == j) {
+                    // diagonal principal fixada em 0 para evitar auto-laco (ex: p43.atsp tem 0 na diagonal)
                     x[i][j] = IloNumVar(env, 0.0, 0.0, ILOFLOAT, nome);
                 } else if (relaxacaoLinear) {
+                    // Q2 - na relaxacao linear x_ij eh continua entre 0 e 1 (ILOFLOAT)
                     x[i][j] = IloNumVar(env, 0.0, 1.0, ILOFLOAT, nome);
                 } else {
+                    // Q3 - no modelo inteiro x_ij eh binaria 0 ou 1 (ILOBOOL)
                     x[i][j] = IloNumVar(env, 0.0, 1.0, ILOBOOL, nome);
                 }
             }
         }
 
-        // Variaveis u_i do MTZ
+        // criacao das variaveis u_i (ordem de visitacao do MTZ)
         IloNumVarArray u(env, n);
         for (int i = 0; i < n; i++) {
             char nome[32];
             sprintf(nome, "u_%d", i + 1);
             if (i == s) {
+                // Eq (9): fixa o vertice inicial na posicao 1 (u_s = 1)
                 u[i] = IloNumVar(env, 1.0, 1.0, relaxacaoLinear ? ILOFLOAT : ILOINT, nome);
             } else {
+                // Eq (11): demais vertices ficam entre 2 e n
                 u[i] = IloNumVar(env, 2.0, (double)n, relaxacaoLinear ? ILOFLOAT : ILOINT, nome);
             }
         }
 
-        // Funcao objetivo (Eq. 2)
+        // Eq (2): funcao objetivo minimizar custo total dos arcos escolhidos
         IloExpr objExpr(env);
         for (int i = 0; i < n; i++) {
             for (int j = 0; j < n; j++) {
@@ -152,7 +165,7 @@ void resolverModeloMTZ(
 
         IloRangeArray restricoes(env);
 
-        // Eq. (3): saida de s igual a 1
+        // Eq (3): o caminho deve sair de s (soma = 1)
         {
             IloExpr exp(env);
             for (int j = 0; j < n; j++) {
@@ -162,7 +175,7 @@ void resolverModeloMTZ(
             exp.end();
         }
 
-        // Eq. (4): chegada em t igual a 1
+        // Eq (4): o caminho deve chegar em t (soma = 1)
         {
             IloExpr exp(env);
             for (int i = 0; i < n; i++) {
@@ -172,7 +185,7 @@ void resolverModeloMTZ(
             exp.end();
         }
 
-        // Eq. (5): nao retorna para s
+        // Eq (5): o caminho nao pode voltar para a origem s (soma = 0)
         {
             IloExpr exp(env);
             for (int i = 0; i < n; i++) {
@@ -182,7 +195,7 @@ void resolverModeloMTZ(
             exp.end();
         }
 
-        // Eq. (6): nao sai de t
+        // Eq (6): o caminho nao pode sair do destino t (soma = 0)
         {
             IloExpr exp(env);
             for (int j = 0; j < n; j++) {
@@ -192,7 +205,7 @@ void resolverModeloMTZ(
             exp.end();
         }
 
-        // Eq. (7) e Eq. (8): conservacao de fluxo nos demais vertices
+        // Eq (7) e Eq (8): todo vertice intermediario k tem grau de entrada 1 e saida 1
         for (int k = 0; k < n; k++) {
             if (k == s || k == t) continue;
 
@@ -211,7 +224,7 @@ void resolverModeloMTZ(
             expOut.end();
         }
 
-        // Eq. (10): restricoes MTZ de eliminacao de subrotas
+        // Eq (10): restricao MTZ (u_i - u_j + n * x_ij <= n - 1) para eliminar subrotas
         for (int i = 0; i < n; i++) {
             for (int j = 0; j < n; j++) {
                 if (j == s || i == j) continue;
@@ -228,6 +241,7 @@ void resolverModeloMTZ(
         cplex.setOut(env.getNullStream());
         cplex.setWarning(env.getNullStream());
 
+        // Q3 - se for o modelo inteiro, coloca o limite de 3 minutos (180 segundos)
         if (!relaxacaoLinear) {
             cplex.setParam(IloCplex::Param::TimeLimit, TIME_LIMIT_SECONDS);
         }
@@ -241,13 +255,16 @@ void resolverModeloMTZ(
         } else {
             double valorObj = cplex.getObjValue();
             if (relaxacaoLinear) {
-                printf("[Relaxacao Linear]\n");
+                // Q2 - imprime resultado da relaxacao linear
+                printf("[Q2 - Relaxacao Linear]\n");
                 printf("Valor Objetivo: %.4f | Tempo: %.4f s\n\n", valorObj, tempoGasto);
             } else {
+                // Q3 - imprime resultado do modelo inteiro
                 double gap = 100.0 * cplex.getMIPRelativeGap();
-                printf("[Modelo Inteiro - PLI]\n");
+                printf("[Q3 - Modelo Inteiro PLI]\n");
                 printf("Valor Objetivo: %.2f | Gap: %.2f%% | Tempo: %.4f s\n", valorObj, gap, tempoGasto);
 
+                // pega os arcos escolhidos (onde x_ij == 1) para montar o caminho
                 vector<int> prox(n, -1);
                 for (int i = 0; i < n; i++) {
                     for (int j = 0; j < n; j++) {
@@ -273,9 +290,10 @@ void resolverModeloMTZ(
                 }
                 printf("\n");
 
+                // Q1 - passa o caminho encontrado no validador da Questao 1
                 double custoVerificado = 0.0;
                 bool valido = verificarCaminhoValido(caminhoArcos, n, s + 1, t + 1, c, &custoVerificado);
-                printf("Caminho valido: %s (Custo = %.2f)\n\n", valido ? "SIM" : "NAO", custoVerificado);
+                printf("Verificacao Q1: %s (Custo = %.2f)\n\n", valido ? "Caminho Valido" : "Invalido", custoVerificado);
             }
         }
     } catch (IloException& e) {
@@ -301,6 +319,7 @@ int resolverArquivoInstancia(const char* caminhoArquivo) {
     }
     fclose(pFile);
 
+    // conforme o PDF: origem s = 1 (indice 0) e destino t = n (indice n-1)
     int s = 0;
     int t = n - 1;
 
@@ -309,9 +328,11 @@ int resolverArquivoInstancia(const char* caminhoArquivo) {
     printf("------------------------------------------------------------\n");
     fflush(stdout);
 
+    // roda Q2 (relaxacao linear = true)
     resolverModeloMTZ(n, s, t, c, true);
     fflush(stdout);
 
+    // roda Q3 (relaxacao linear = false -> modelo inteiro)
     resolverModeloMTZ(n, s, t, c, false);
     fflush(stdout);
 
@@ -366,4 +387,3 @@ int main(int argc, char* argv[]) {
 
     return 0;
 }
-
