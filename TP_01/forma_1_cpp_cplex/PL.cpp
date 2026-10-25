@@ -7,7 +7,7 @@
 // com Vertices de Origem (s = 1) e Destino (t = n) - Formulacao MTZ
 //
 // Implementacao Forma 1: C++ com IBM ILOG CPLEX Concert Technology
-// (Seguindo a estrutura base disponibilizada na pasta Implementacao)
+// (Compativel tanto com Linux/CPLEX quanto com Windows/GCC no VS Code)
 // ============================================================================
 
 #include <stdio.h>
@@ -18,8 +18,19 @@
 #include <utility>
 #include <string>
 #include <cmath>
-#include <ilcplex/ilocplex.h>
+
+#if defined(__has_include)
+  #if __has_include(<ilcplex/ilocplex.h>)
+    #include <ilcplex/ilocplex.h>
+  #else
+    #include "include/ilcplex/ilocplex.h"
+  #endif
+#else
+  #include <ilcplex/ilocplex.h>
+#endif
+
 #include "readFile.h"
+#include "readFile.c"
 
 #define EPS 1e-5
 #define TIME_LIMIT_SECONDS 180.0 // 3 minutos (Atividade 3)
@@ -322,7 +333,7 @@ void resolverModeloMTZ(
                 printf("Gap Relativo    : %.2f%%\n", gap);
                 printf("Tempo (s)       : %.4f s\n", tempoGasto);
 
-                // Reconstrói a sequencia de arcos ordenada a partir de s
+                // Reconstroi a sequencia de arcos ordenada a partir de s
                 vector<int> prox(n, -1);
                 for (int i = 0; i < n; i++) {
                     for (int j = 0; j < n; j++) {
@@ -365,14 +376,33 @@ void resolverModeloMTZ(
 }
 
 int main(int argc, char* argv[]) {
-    if (argc < 2) {
-        printf("Uso: %s <arquivo_instancia.atsp>\n", argv[0]);
-        return 1;
+    // Se executado diretamente pelo botao Play do VS Code sem argumentos,
+    // tenta localizar a instancia br17.atsp automaticamente
+    const char* candidatosPadrao[] = {
+        "../../Implementacao/instancias/Completos e Assimetricos nos Arcos/br17.atsp",
+        "../Implementacao/instancias/Completos e Assimetricos nos Arcos/br17.atsp",
+        "Implementacao/instancias/Completos e Assimetricos nos Arcos/br17.atsp"
+    };
+
+    const char* caminhoArquivo = NULL;
+    FILE* pFile = NULL;
+
+    if (argc >= 2) {
+        caminhoArquivo = argv[1];
+        pFile = fopen(caminhoArquivo, "r");
+    } else {
+        for (int i = 0; i < 3; i++) {
+            pFile = fopen(candidatosPadrao[i], "r");
+            if (pFile != NULL) {
+                caminhoArquivo = candidatosPadrao[i];
+                break;
+            }
+        }
     }
 
-    FILE* pFile = fopen(argv[1], "r");
     if (pFile == NULL) {
-        printf("Nao foi possivel abrir o arquivo: %s\n", argv[1]);
+        printf("Nao foi possivel abrir o arquivo de instancia.\n");
+        printf("Uso: %s <arquivo_instancia.atsp>\n", argv[0]);
         return 1;
     }
 
@@ -380,7 +410,7 @@ int main(int argc, char* argv[]) {
     vector<vector<double>> c;
     if (readATSPFile(pFile, &n, c) != 0) {
         fclose(pFile);
-        printf("Erro ao ler a instancia ATSP: %s\n", argv[1]);
+        printf("Erro ao ler a instancia ATSP: %s\n", caminhoArquivo);
         return 1;
     }
     fclose(pFile);
@@ -389,7 +419,7 @@ int main(int argc, char* argv[]) {
     int t = n - 1; // Vertice de destino: n (indice n-1)
 
     printf("============================================================\n");
-    printf("Instancia: %s | n = %d | Origem s = 1 | Destino t = %d\n", argv[1], n, n);
+    printf("Instancia: %s | n = %d | Origem s = 1 | Destino t = %d\n", caminhoArquivo, n, n);
     printf("============================================================\n");
 
     // Executa Atividade 2 (Relaxacao Linear)

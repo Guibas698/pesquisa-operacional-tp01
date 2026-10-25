@@ -2,7 +2,28 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "TP 01: Rodar Todas as Instancias (Modo Rapido 30s)",
+      "name": "C++ (Forma 1): Compilar e Rodar PL.cpp (br17.atsp)",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/forma_1_cpp_cplex/PL.exe",
+      "args": [
+        "${workspaceFolder}/../Implementacao/instancias/Completos e Assimetricos nos Arcos/br17.atsp"
+      ],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}/forma_1_cpp_cplex",
+      "environment": [
+        {
+          "name": "PATH",
+          "value": "C:\\Users\\games\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin;${env:PATH}"
+        }
+      ],
+      "externalConsole": false,
+      "MIMode": "gdb",
+      "miDebuggerPath": "C:/Users/games/AppData/Local/Microsoft/WinGet/Packages/BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe/mingw64/bin/gdb.exe",
+      "preLaunchTask": "C/C++: g++.exe compilar PL.cpp"
+    },
+    {
+      "name": "Python (Forma 2): Rodar Todas as Instancias (Modo Rapido 30s)",
       "type": "debugpy",
       "request": "launch",
       "program": "${workspaceFolder}/forma_2_python_mip/pchm_mtz.py",
@@ -12,30 +33,12 @@
       "console": "integratedTerminal"
     },
     {
-      "name": "TP 01: Rodar Todas as Instancias (Limite Oficial 3 min / 180s)",
-      "type": "debugpy",
-      "request": "launch",
-      "program": "${workspaceFolder}/forma_2_python_mip/pchm_mtz.py",
-      "args": [],
-      "console": "integratedTerminal"
-    },
-    {
-      "name": "TP 01: Testar apenas br17.atsp (Instantaneo)",
+      "name": "Python (Forma 2): Testar apenas br17.atsp (Instantaneo)",
       "type": "debugpy",
       "request": "launch",
       "program": "${workspaceFolder}/forma_2_python_mip/pchm_mtz.py",
       "args": [
         "${workspaceFolder}/../Implementacao/instancias/Completos e Assimetricos nos Arcos/br17.atsp"
-      ],
-      "console": "integratedTerminal"
-    },
-    {
-      "name": "TP 01: Testar apenas ftv33.atsp (Instantaneo)",
-      "type": "debugpy",
-      "request": "launch",
-      "program": "${workspaceFolder}/forma_2_python_mip/pchm_mtz.py",
-      "args": [
-        "${workspaceFolder}/../Implementacao/instancias/Completos e Assimetricos nos Arcos/ftv33.atsp"
       ],
       "console": "integratedTerminal"
     },

@@ -1,19 +1,21 @@
+#ifndef READFILE_C_INCLUDED_
+#define READFILE_C_INCLUDED_
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
 #include "readFile.h"
 
-int readATSPFile(FILE* graphFile, int *n, std::vector<std::vector<double>>& c) {
+inline int readATSPFile(FILE* graphFile, int *n, std::vector<std::vector<double>>& c) {
     char word[256];
     *n = 0;
 
     // Procura por DIMENSION e EDGE_WEIGHT_SECTION no cabecalho TSPLIB
     while (fscanf(graphFile, "%255s", word) == 1) {
         if (strncmp(word, "DIMENSION", 9) == 0) {
-            // Se for "DIMENSION:" le o numero logo em seguida; se for "DIMENSION" le ":" e depois o numero
             if (strchr(word, ':') == NULL) {
-                fscanf(graphFile, "%255s", word); // consome ":"
+                if (fscanf(graphFile, "%255s", word) != 1) return -1;
             }
             if (fscanf(graphFile, "%d", n) != 1) {
                 return -1;
@@ -41,3 +43,5 @@ int readATSPFile(FILE* graphFile, int *n, std::vector<std::vector<double>>& c) {
 
     return 0;
 }
+
+#endif /* READFILE_C_INCLUDED_ */
