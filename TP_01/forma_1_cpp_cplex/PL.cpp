@@ -1,4 +1,4 @@
-#include <stdio.h>
+﻿#include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 #include <iostream>
@@ -328,6 +328,8 @@ int main(int argc, char* argv[]) {
     }
 
     const char* prefixos[] = {
+        "../instancias/Completos e Assimetricos nos Arcos/",
+        "../../instancias/Completos e Assimetricos nos Arcos/",
         "../../../Implementacao/instancias/Completos e Assimetricos nos Arcos/",
         "../../Implementacao/instancias/Completos e Assimetricos nos Arcos/",
         "../Implementacao/instancias/Completos e Assimetricos nos Arcos/",
@@ -342,7 +344,7 @@ int main(int argc, char* argv[]) {
     const int totalInstancias = 13;
 
     string pastaEncontrada = "";
-    for (int p = 0; p < 4; p++) {
+    for (int p = 0; p < 6; p++) {
         string teste = string(prefixos[p]) + "br17.atsp";
         FILE* f = fopen(teste.c_str(), "r");
         if (f != NULL) {
@@ -364,3 +366,4 @@ int main(int argc, char* argv[]) {
 
     return 0;
 }
+

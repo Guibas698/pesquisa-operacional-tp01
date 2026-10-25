@@ -1,4 +1,4 @@
-import os
+﻿import os
 import sys
 import time
 import glob
@@ -387,3 +387,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
